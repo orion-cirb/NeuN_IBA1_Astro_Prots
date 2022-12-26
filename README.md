@@ -27,7 +27,7 @@
 
 * **3DImageSuite** Fiji plugin
 * **CLIJ** Fiji plugin
-* **Cellpose** conda environment + *cyto2*, *cyto_PV1* (homemade) and *livecell_PNN1* (homemade) models
+* **Cellpose** conda environment + *cyto*
 
 ### Version history
 
