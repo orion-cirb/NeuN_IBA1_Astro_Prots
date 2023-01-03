@@ -27,6 +27,7 @@ import loci.common.services.ServiceException;
 import loci.formats.FormatException;
 import loci.formats.meta.IMetadata;
 import loci.plugins.util.ImageProcessorReader;
+import mcib3d.geom2.Object3DComputation;
 import mcib3d.geom2.Object3DInt;
 import mcib3d.geom2.Objects3DIntPopulation;
 import mcib3d.geom2.Objects3DIntPopulationComputation;
@@ -268,6 +269,26 @@ public class Tools {
         pop.resetLabels();
     }
     
+    /**
+     * Remove object with size < min and size > max
+     * @param pop
+     * @param min
+     * @param max
+     */
+    public void popFilterSize(Objects3DIntPopulation pop, double min, double max) {
+        pop.getObjects3DInt().removeIf(p -> (new MeasureVolume(p).getVolumeUnit() < min) || (new MeasureVolume(p).getVolumeUnit() > max));
+        pop.resetLabels();
+    }
+    
+    /**
+     * Remove object touching border image
+     */
+    public void removeTouchingBorder(Objects3DIntPopulation pop, ImagePlus img) {
+        ImageHandler imh = ImageHandler.wrap(img);
+        pop.getObjects3DInt().removeIf(p -> (new Object3DComputation(p).touchBorders(imh, false)));
+        pop.resetLabels();
+    }
+    
     
     
    /**
@@ -299,12 +320,13 @@ public class Tools {
         flush_close(imgIn);
         ImagePlus cells_img = (resized) ? cellpose_img.resize(width, height, 1, "none") : cellpose_img;
         cells_img.setCalibration(cal);
+        // Find population
         Objects3DIntPopulation pop = new Objects3DIntPopulation(ImageHandler.wrap(cells_img));
         popFilterOneZ(pop);
-        Objects3DIntPopulation cellFilterPop = new Objects3DIntPopulationComputation(pop).getFilterSize(minCellVol/pixVol, maxCellVol/pixVol);
-        cellFilterPop.resetLabels();
+        removeTouchingBorder(pop, cells_img);
+        popFilterSize(pop, minCellVol, maxCellVol);
         flush_close(cells_img);
-        return(cellFilterPop);
+        return(pop);
     }
     
      /**
