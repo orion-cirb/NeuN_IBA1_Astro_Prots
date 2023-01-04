@@ -2,7 +2,7 @@
 
 * **Developed for:** Arthur
 * **Team:** Rouach
-* **Date:** December 2022
+* **Date:** January 2023
 * **Software:** Fiji
 
 
@@ -11,17 +11,17 @@
 
 3D images taken with a x60 objective
 
-2/3 channels:
+3 channels:
   1. *Alexa Fluor 647:* NeuN cells
-  2. *Alexa Fluor 555:* PV cells
-  3. *Alexa Fluor 488:* MNP9
+  2. *Alexa Fluor 555:* PV cells (not mandatory)
+  3. *Alexa Fluor 488:* MMP9
 
 ### Plugin description
 
-* Detect NeuN and PV (if exist) cells with Cellpose
+* Detect NeuN and PV (if corresponding channel provided) cells with Cellpose
 * Compute their colocalization
-* Measure NeuN cells volume and intensity in MNP9 channel
 * Add flag if NeuN cells are PV positive
+* Measure NeuN cells volume and intensity in MMP9 channel
 
 ### Dependencies
 
@@ -31,5 +31,5 @@
 
 ### Version history
 
-Version 1 released on December 26, 2022.
+Version 1 released on January 3, 2023.
 
