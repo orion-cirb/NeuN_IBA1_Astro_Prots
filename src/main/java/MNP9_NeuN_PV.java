@@ -10,7 +10,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -84,7 +83,8 @@ public class MNP9_NeuN_PV implements PlugIn {
             String[] chsName = tools.findChannels(imageFiles.get(0), meta, reader);
             
             // Write header
-            String header= "Image Name\t#NeuN cell\tNeuN volume (µm3)\tPV positive\tTotal cell intensity\tMean cell intensity\tMNP9 bg mean intensity\n";
+            String header= "Image Name\t#NeuN cell\tNeuN volume (µm3)\tPV positive\tMean cell intensity\tTotal NeuN Intensity\tTotal NeuN PV- Intensity"
+                    + "\tTotal NeuN PV+ Intensity\tMNP9 bg mean intensity\n";
             FileWriter fwNucleusGlobal = new FileWriter(outDirResults + "results.xls", false);
             results_analyze = new BufferedWriter(fwNucleusGlobal);
             results_analyze.write(header);
@@ -116,7 +116,7 @@ public class MNP9_NeuN_PV implements PlugIn {
                 // open NeuN Channel
                 System.out.println("--- Opening NeuN channel  ...");
                 ImagePlus imgNeuN = BF.openImagePlus(options)[channelsIndex[0]];
-                Objects3DIntPopulation neunPop = tools.cellPoseCellsPop(imgNeuN);
+                Objects3DIntPopulation neunPop = tools.cellPoseCellsPop(imgNeuN, tools.cellPoseModel_NeuN);
                 int neunCells = neunPop.getNbObjects();
                 System.out.println(neunCells+" NeuN cells found");
                 
@@ -127,7 +127,7 @@ public class MNP9_NeuN_PV implements PlugIn {
                     System.out.println("--- Opening PV channel ...");
                     imgPV = BF.openImagePlus(options)[channelsIndex[1]];
                     // Find PV cells
-                    pvPop = tools.cellPoseCellsPop(imgPV);
+                    pvPop = tools.cellPoseCellsPop(imgPV, tools.cellPoseModel_PV);
                     int pvCells = pvPop.getNbObjects();
                     System.out.println(pvCells+" PV cells found");
                     // Find Neun/PV+ cells

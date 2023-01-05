@@ -30,7 +30,6 @@ import loci.plugins.util.ImageProcessorReader;
 import mcib3d.geom2.Object3DComputation;
 import mcib3d.geom2.Object3DInt;
 import mcib3d.geom2.Objects3DIntPopulation;
-import mcib3d.geom2.Objects3DIntPopulationComputation;
 import mcib3d.geom2.measurements.MeasureIntensity;
 import mcib3d.geom2.measurements.MeasureVolume;
 import mcib3d.geom2.measurementsPopulation.MeasurePopulationColocalisation;
@@ -60,12 +59,13 @@ public class Tools {
     public double pixVol = 0;
     
      // Cellpose
-    public int cellPoseDiameter = 100;
+    public int cellPoseDiameter = 80;
     private String cellPoseEnvDirPath = (IJ.isWindows()) ? System.getProperty("user.home")+"\\miniconda3\\envs\\cellpose\\" : 
             "/opt/miniconda3/envs/cellpose/";
     private final String cellposeModelsPath = (IJ.isWindows()) ? System.getProperty("user.home")+"\\.cellpose\\models\\" :
             System.getProperty("user.home")+"/.cellpose/models/";
-    private final String cellPoseModel = "cyto";
+    public final String cellPoseModel_PV = "cyto_PV1";
+    public final String cellPoseModel_NeuN = "cyto2";
     public final ImageIcon icon = new ImageIcon(this.getClass().getResource("/Orion_icon.png"));
 
     public CLIJ2 clij2 = CLIJ2.getInstance();
@@ -297,7 +297,7 @@ public class Tools {
  * @param img
  * @return 
  */
-    public Objects3DIntPopulation cellPoseCellsPop(ImagePlus imgCell){
+    public Objects3DIntPopulation cellPoseCellsPop(ImagePlus imgCell, String model){
         ImagePlus imgIn = null;
         // resize to be in a friendly scale
         int width = imgCell.getWidth();
@@ -312,7 +312,7 @@ public class Tools {
             imgIn = new Duplicator().run(imgCell);
         imgIn.setCalibration(cal);
         median_filter(clij2.push(imgIn), 2, 2);
-        CellposeTaskSettings settings = new CellposeTaskSettings(cellPoseModel, 1, cellPoseDiameter, cellPoseEnvDirPath);
+        CellposeTaskSettings settings = new CellposeTaskSettings(cellposeModelsPath+model, 1, cellPoseDiameter, cellPoseEnvDirPath);
         settings.setStitchThreshold(0.25); 
         settings.useGpu(true);
         CellposeSegmentImgPlusAdvanced cellpose = new CellposeSegmentImgPlusAdvanced(settings, imgIn);
@@ -323,7 +323,6 @@ public class Tools {
         // Find population
         Objects3DIntPopulation pop = new Objects3DIntPopulation(ImageHandler.wrap(cells_img));
         popFilterOneZ(pop);
-        removeTouchingBorder(pop, cells_img);
         popFilterSize(pop, minCellVol, maxCellVol);
         flush_close(cells_img);
         return(pop);
@@ -348,8 +347,9 @@ public class Tools {
             if (!list.isEmpty()) {
                 list.forEach(p -> {
                     Object3DInt obj2 = p.getObject3D2();
-                    if (p.getPairValue() > obj2.size()*pourc) {
+                    if (p.getPairValue() > obj1.size()*pourc) {
                         obj1.setIdObject(obj2.getLabel());
+                        obj2.setIdObject(1);
                         ai.incrementAndGet();
                     }
                 });
@@ -372,7 +372,10 @@ public class Tools {
         pop1.drawInImage(imgObj1);
         ImageHandler imgObj2 = (pop2 == null) ? null : ImageHandler.wrap(img).createSameDimensions(); 
         if (pop2 != null)
-            pop2.drawInImage(imgObj2);
+            for (Object3DInt obj : pop2.getObjects3DInt()) {
+                if(obj.getIdObject() == 1)
+                    obj.drawObject(imgObj2);
+            }
             
         // save image for objects population
         ImagePlus[] imgColors = {imgObj1.getImagePlus(), imgObj2.getImagePlus()};
@@ -421,16 +424,26 @@ public class Tools {
      */
     public void writeCellsParameters(Objects3DIntPopulation neunPop, ImagePlus imgMNP9, String imgName, BufferedWriter results) throws IOException {
         double mnp9Bg = findBackground(imgMNP9);
+        double allNeuNInt = 0;
+        double allNeuNPvInt = 0;
+        double allNeunPvNoneInt = 0;
         
         for (Object3DInt cell : neunPop.getObjects3DInt()) {
             float label = cell.getLabel();
             float pv = cell.getIdObject();
             double neuVol = new MeasureVolume(cell).getVolumeUnit();
-            double cellIntTot = new MeasureIntensity(cell, ImageHandler.wrap(imgMNP9)).getValueMeasurement(MeasureIntensity.INTENSITY_SUM);
             double cellIntMean = new MeasureIntensity(cell, ImageHandler.wrap(imgMNP9)).getValueMeasurement(MeasureIntensity.INTENSITY_AVG);
+            allNeuNInt += cellIntMean;
+            if (pv == 0)
+                allNeunPvNoneInt += cellIntMean;
+            else
+                allNeuNPvInt += cellIntMean;
             
             // write results
-            results.write(imgName+"\t"+label+"\t"+neuVol+"\t"+pv+"\t"+cellIntTot+"\t"+cellIntMean+"\t"+mnp9Bg+"\n");
+            if (label == neunPop.getNbObjects())
+                results.write(imgName+"\t"+label+"\t"+neuVol+"\t"+pv+"\t"+cellIntMean+"\t"+allNeuNInt+"\t"+allNeunPvNoneInt+"\t"+allNeuNPvInt+"\t"+mnp9Bg+"\n");
+            else
+                results.write(imgName+"\t"+label+"\t"+neuVol+"\t"+pv+"\t"+cellIntMean+"\t\t\t\t\t\n");
             results.flush();
         }
     }
