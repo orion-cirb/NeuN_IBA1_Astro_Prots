@@ -31,5 +31,5 @@
 
 ### Version history
 
-Version 1 released on January 3, 2023.
+Version 1 released on January 5, 2023.
 
