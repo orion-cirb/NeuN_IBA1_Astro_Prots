@@ -1,4 +1,4 @@
-package MNP9_NeuN_PV_Cellpose;
+package NeuN_IBA1_Astro_Prots_Tools.Cellpose;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 import static java.io.File.separatorChar;
 
 import ij.IJ;
-import MNP9_NeuN_PV_Cellpose.CellposeTaskSettings;
+import NeuN_IBA1_Astro_Prots_Tools.Cellpose.CellposeTaskSettings;
 
 
 public class Cellpose {

@@ -1,9 +1,9 @@
-package MNP9_NeuN_PV_Tools;
+package NeuN_IBA1_Astro_Prots_Tools;
 
 
 
-import MNP9_NeuN_PV_Cellpose.CellposeSegmentImgPlusAdvanced;
-import MNP9_NeuN_PV_Cellpose.CellposeTaskSettings;
+import NeuN_IBA1_Astro_Prots_Tools.Cellpose.CellposeSegmentImgPlusAdvanced;
+import NeuN_IBA1_Astro_Prots_Tools.Cellpose.CellposeTaskSettings;
 import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
 import ij.ImagePlus;
@@ -19,6 +19,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.ImageIcon;
@@ -53,54 +54,66 @@ import org.apache.commons.lang.ArrayUtils;
 public class Tools {
 
     public boolean canceled = true;
-    public double minCellVol= 50;
-    public double maxCellVol = Double.MAX_VALUE;
+    public double minCellVol= 20;
+    public double maxCellVol = 8000;
     public Calibration cal;
     public double pixVol = 0;
     
      // Cellpose
-    public int cellPoseDiameter = 80;
+    public int cellPoseNeuNDiameter = 100;
+    public int cellPoseIba1Diameter = 60;
+    public int cellPoseAstroDiameter = 80;
     private String cellPoseEnvDirPath = (IJ.isWindows()) ? System.getProperty("user.home")+"\\miniconda3\\envs\\cellpose\\" : 
             "/opt/miniconda3/envs/cellpose/";
     private final String cellposeModelsPath = (IJ.isWindows()) ? System.getProperty("user.home")+"\\.cellpose\\models\\" :
             System.getProperty("user.home")+"/.cellpose/models/";
-    public final String cellPoseModel_PV = "cyto_PV1";
     public final String cellPoseModel_NeuN = "cyto2";
+    public final String cellPoseModel_Iba1 = "cyto2_Iba1_microglia";
+    public final String cellPoseModel_Astro = "cyto2";
     public final ImageIcon icon = new ImageIcon(this.getClass().getResource("/Orion_icon.png"));
 
     public CLIJ2 clij2 = CLIJ2.getInstance();
     
    
-    
-    
     public int[] dialog(String[] chs) {
-        String[] channelNames = {"NeuN", "PV", "MNP9"}; 
+        String[] channelNames = {"NeuN", "IBA1", "Astro", "ProtA (mandatory)", "ProtB", "ProtC"};
         GenericDialogPlus gd = new GenericDialogPlus("Parameters");
         gd.setInsets​(0, 100, 0);
         gd.addImage(icon);
         gd.addMessage("Channels", Font.getFont("Monospace"), Color.blue);
         int index = 0;
         for (String chNames : channelNames) {
-            gd.addChoice(chNames+" : ", chs, chs[index]);
+            String ch = (index < chs.length) ? chs[index] : chs[chs.length-1];
+            gd.addChoice(chNames+" : ", chs, ch);
             index++;
         }
         gd.addMessage("Cells detection", Font.getFont("Monospace"), Color.blue);
         gd.addDirectoryField("Cellpose environment path : ", cellPoseEnvDirPath);
-        gd.addNumericField("min cell volume : ", minCellVol);
-        gd.addNumericField("max cell volume : ", maxCellVol);
+        gd.addNumericField("NeuN Cellpose diameter: ", cellPoseNeuNDiameter);
+        gd.addNumericField("Iba1 Cellpose diameter: ", cellPoseIba1Diameter);
+        gd.addNumericField("Astrocyte Cellpose diameter: ", cellPoseIba1Diameter);
+        gd.addNumericField("min cell volume (µm3): ", minCellVol);
+        gd.addNumericField("max cell volume (µm3): ", maxCellVol);
         gd.addMessage("Image calibration", Font.getFont("Monospace"), Color.blue);
-        gd.addNumericField("Pixel size : ", cal.pixelWidth);
+        gd.addNumericField("Pixel size XY (µm): ", cal.pixelWidth);
+        gd.addNumericField("Pixel size Z (µm): ", cal.pixelDepth);
         gd.showDialog();
         if (gd.wasCanceled())
             canceled = true;
         int[] chChoices = new int[channelNames.length];
-        for (int n = 0; n < chChoices.length; n++) 
+        for (int n = 0; n < chChoices.length; n++)
             chChoices[n] = ArrayUtils.indexOf(chs, gd.getNextChoice());
         cellPoseEnvDirPath = gd.getNextString();
+        cellPoseNeuNDiameter = (int)gd.getNextNumber();
+        cellPoseIba1Diameter = (int)gd.getNextNumber();
+        cellPoseAstroDiameter = (int)gd.getNextNumber();
         minCellVol = gd.getNextNumber();
         maxCellVol = gd.getNextNumber();
         cal.pixelWidth = cal.pixelHeight = gd.getNextNumber();
+        cal.pixelDepth = gd.getNextNumber();
         pixVol = cal.pixelWidth*cal.pixelWidth*cal.pixelDepth;
+        if (gd.wasCanceled())
+            return(null);
         return(chChoices);
     }
      
@@ -124,37 +137,49 @@ public class Tools {
         return(imgCLMed);
     }
     
-     /**
-     * Find image type
+    /**
+     * Find images extension
+     * @param imagesFolder
+     * @return 
      */
     public String findImageType(File imagesFolder) {
         String ext = "";
-        String[] files = imagesFolder.list();
-        for (String name : files) {
-            String fileExt = FilenameUtils.getExtension(name);
-            switch (fileExt) {
-               case "nd" :
-                   ext = fileExt;
-                   break;
-                case "czi" :
-                   ext = fileExt;
-                   break;
-                case "lif"  :
-                    ext = fileExt;
-                    break;
-                case "ics2" :
-                    ext = fileExt;
-                    break;
-                case "ics" :
-                    ext = fileExt;
-                    break;
-                case "tif" :
-                    ext = fileExt;
+        File[] files = imagesFolder.listFiles();
+        for (File file: files) {
+            if(file.isFile()) {
+                String fileExt = FilenameUtils.getExtension(file.getName());
+                switch (fileExt) {
+                   case "nd" :
+                       ext = fileExt;
+                       break;
+                   case "nd2" :
+                       ext = fileExt;
+                       break;
+                    case "czi" :
+                       ext = fileExt;
+                       break;
+                    case "lif"  :
+                        ext = fileExt;
+                        break;
+                    case "ics2" :
+                        ext = fileExt;
+                        break;
+                    case "tif" :
+                        ext = fileExt;
+                        break;
+                    case "tiff" :
+                        ext = fileExt;
+                        break;
+                }
+            } else if (file.isDirectory() && !file.getName().equals("Results")) {
+                ext = findImageType(file);
+                if (! ext.equals(""))
                     break;
             }
         }
         return(ext);
     }
+    
     
     /**
      * Find images in folder
@@ -179,64 +204,52 @@ public class Tools {
         return(images);
     }
     
+    
      /**
      * Find channels name
-     * @param imageName
-     * @return 
      * @throws loci.common.services.DependencyException
      * @throws loci.common.services.ServiceException
      * @throws loci.formats.FormatException
      * @throws java.io.IOException
      */
     public String[] findChannels (String imageName, IMetadata meta, ImageProcessorReader reader) throws DependencyException, ServiceException, FormatException, IOException {
-        ArrayList<String> channels = new ArrayList<>();
         int chs = reader.getSizeC();
+        String[] channels = new String[chs+1];
         String imageExt =  FilenameUtils.getExtension(imageName);
         switch (imageExt) {
             case "nd" :
                 for (int n = 0; n < chs; n++) 
-                {
-                    if (meta.getChannelID(0, n) == null)
-                        channels.add(Integer.toString(n));
-                    else 
-                        channels.add(meta.getChannelName(0, n).toString());
-                }
+                    channels[n] = (meta.getChannelName(0, n).toString().equals("")) ? Integer.toString(n) : meta.getChannelName(0, n).toString();
+                break;
+            case "nd2" :
+                for (int n = 0; n < chs; n++) 
+                    channels[n] = (meta.getChannelName(0, n).toString().equals("")) ? Integer.toString(n) : meta.getChannelName(0, n).toString();
                 break;
             case "lif" :
                 for (int n = 0; n < chs; n++) 
                     if (meta.getChannelID(0, n) == null || meta.getChannelName(0, n) == null)
-                        channels.add(Integer.toString(n));
+                        channels[n] = Integer.toString(n);
                     else 
-                        channels.add(meta.getChannelName(0, n).toString());
+                        channels[n] = meta.getChannelName(0, n).toString();
                 break;
             case "czi" :
                 for (int n = 0; n < chs; n++) 
-                    if (meta.getChannelID(0, n) == null)
-                        channels.add(Integer.toString(n));
-                    else 
-                        channels.add(meta.getChannelFluor(0, n).toString());
+                    channels[n] = (meta.getChannelFluor(0, n).toString().equals("")) ? Integer.toString(n) : meta.getChannelFluor(0, n).toString();
                 break;
             case "ics" :
                 for (int n = 0; n < chs; n++) 
-                    if (meta.getChannelID(0, n) == null)
-                        channels.add(Integer.toString(n));
-                    else 
-                        channels.add(meta.getChannelExcitationWavelength(0, n).value().toString());
-                break; 
+                    channels[n] = (meta.getChannelID(0, n) == null) ? channels[n] = Integer.toString(n) : meta.getChannelExcitationWavelength(0, n).value().toString();
+                break;    
             case "ics2" :
                 for (int n = 0; n < chs; n++) 
-                    if (meta.getChannelID(0, n) == null)
-                        channels.add(Integer.toString(n));
-                    else 
-                        channels.add(meta.getChannelExcitationWavelength(0, n).value().toString());
-                break;        
+                    channels[n] = (meta.getChannelID(0, n) == null) ? channels[n] = Integer.toString(n) : meta.getChannelExcitationWavelength(0, n).value().toString();
+                break; 
             default :
                 for (int n = 0; n < chs; n++)
-                    channels.add(Integer.toString(n));
-
+                    channels[n] = Integer.toString(n);
         }
-        channels.add("None");
-        return(channels.toArray(new String[channels.size()]));         
+        channels[chs] = "None";
+        return(channels);     
     }
     
     
@@ -258,7 +271,23 @@ public class Tools {
         return(cal);
     }
     
-   
+     /**
+     * Find mean intensity of objects  
+     * @param pop
+     * @param img
+     * @return intensity
+     */
+    
+    public ArrayList<Double> cellsIntensity (Objects3DIntPopulation pop, ImagePlus img) {
+        double bg = findBackground(img);
+        IJ.showStatus("Findind object's intensity");
+        ImageHandler imh = ImageHandler.wrap(img);
+        ArrayList<Double> cellInt = new ArrayList();
+        for(Object3DInt obj : pop.getObjects3DInt()) {
+            cellInt.add(new MeasureIntensity(obj, imh).getValueMeasurement(MeasureIntensity.INTENSITY_AVG) - bg);
+        }
+        return(cellInt);
+    }
     
     /**
      * Remove object with only one plan
@@ -297,7 +326,7 @@ public class Tools {
  * @param img
  * @return 
  */
-    public Objects3DIntPopulation cellPoseCellsPop(ImagePlus imgCell, String model){
+    public Objects3DIntPopulation cellPoseCellsPop(ImagePlus imgCell, String model, int cellPoseDiameter){
         ImagePlus imgIn = null;
         // resize to be in a friendly scale
         int width = imgCell.getWidth();
@@ -359,33 +388,23 @@ public class Tools {
     } 
     
     /**
-     * Save dots Population in image
-     * @param pop1 neun
-     * @param pop2 pv
+     * Save cells Population in image
+     * @param pop cells
      * @param imageName
      * @param img 
      * @param outDir 
      */
-    public void saveImgObjects(Objects3DIntPopulation pop1, Objects3DIntPopulation pop2, String imageName, ImagePlus img, String outDir) {
+    public void saveImgObjects(Objects3DIntPopulation pop, String imageName, ImagePlus img, String outDir) {
         //create image objects population
-        ImageHandler imgObj1 = ImageHandler.wrap(img).createSameDimensions();
-        pop1.drawInImage(imgObj1);
-        ImageHandler imgObj2 = (pop2 == null) ? null : ImageHandler.wrap(img).createSameDimensions(); 
-        if (pop2 != null)
-            for (Object3DInt obj : pop2.getObjects3DInt()) {
-                if(obj.getIdObject() == 1)
-                    obj.drawObject(imgObj2);
-            }
-            
-        // save image for objects population
-        ImagePlus[] imgColors = {imgObj1.getImagePlus(), imgObj2.getImagePlus()};
+        ImageHandler imgObj = ImageHandler.wrap(img).createSameDimensions();
+        pop.drawInImage(imgObj);
+        ImagePlus[] imgColors = {imgObj.getImagePlus(), null,null,img};
         ImagePlus imgObjects = new RGBStackMerge().mergeHyperstacks(imgColors, false);
-        imgObjects.setCalibration(img.getCalibration());
+        imgObjects.setCalibration(cal);
         FileSaver ImgObjectsFile = new FileSaver(imgObjects);
-        ImgObjectsFile.saveAsTiff(outDir + imageName + "_Objects.tif"); 
-        imgObj1.closeImagePlus();
-        imgObj2.closeImagePlus();
-        flush_close(imgObjects);
+        ImgObjectsFile.saveAsTiff(outDir+imageName);
+        imgObj.closeImagePlus();
+        imgObjects.close();
     }
     
      /**
@@ -418,36 +437,28 @@ public class Tools {
       return(bg);
     }
     
-    
      /**
-     * Compute and save Neun cells parameters
+     * Compute and save cells parameters
      */
-    public void writeCellsParameters(Objects3DIntPopulation neunPop, ImagePlus imgMNP9, String imgName, BufferedWriter results) throws IOException {
-        double mnp9Bg = findBackground(imgMNP9);
-        double allNeuNInt = 0;
-        double allNeuNPvInt = 0;
-        double allNeunPvNoneInt = 0;
-        
-        for (Object3DInt cell : neunPop.getObjects3DInt()) {
-            float label = cell.getLabel();
-            float pv = cell.getIdObject();
-            double neuVol = new MeasureVolume(cell).getVolumeUnit();
-            double cellIntMean = new MeasureIntensity(cell, ImageHandler.wrap(imgMNP9)).getValueMeasurement(MeasureIntensity.INTENSITY_AVG);
-            allNeuNInt += cellIntMean;
-            if (pv == 0)
-                allNeunPvNoneInt += cellIntMean;
-            else
-                allNeuNPvInt += cellIntMean;
-            
-            // write results
-            if (label == neunPop.getNbObjects())
-                results.write(imgName+"\t"+label+"\t"+neuVol+"\t"+pv+"\t"+cellIntMean+"\t"+allNeuNInt+"\t"+allNeunPvNoneInt+"\t"+allNeuNPvInt+"\t"+mnp9Bg+"\n");
-            else
-                results.write(imgName+"\t"+label+"\t"+neuVol+"\t"+pv+"\t"+cellIntMean+"\t\t\t\t\t\n");
-            results.flush();
+    public void writeCellsParameters(Objects3DIntPopulation pop, ImagePlus imgProtA, ImagePlus imgProtB, ImagePlus imgProtC, 
+            String imgName, BufferedWriter results) throws IOException {
+        if (pop.getNbObjects() != 0) {
+            double bgProtA = findBackground(imgProtA);
+            double bgProtB = (imgProtB == null) ? 0 : findBackground(imgProtB);
+            double bgProtC = (imgProtC == null) ? 0 : findBackground(imgProtC);
+            for (Object3DInt obj : pop.getObjects3DInt()) {
+                int objLabel = (int)obj.getLabel();
+                double objVol = new MeasureVolume(obj).getVolumeUnit();
+                double cellIntProtA = new MeasureIntensity(obj, ImageHandler.wrap(imgProtA)).getValueMeasurement(MeasureIntensity.INTENSITY_AVG) - bgProtA;
+                double cellIntProtB = (imgProtB == null) ? 0 : 
+                        new MeasureIntensity(obj, ImageHandler.wrap(imgProtB)).getValueMeasurement(MeasureIntensity.INTENSITY_AVG) - bgProtB;
+                double cellIntProtC = (imgProtC == null) ? 0 : 
+                        new MeasureIntensity(obj, ImageHandler.wrap(imgProtC)).getValueMeasurement(MeasureIntensity.INTENSITY_AVG) - bgProtC;
+                results.write(imgName+"\t"+objLabel+"\t"+objVol+"\t"+cellIntProtA+"\t"+cellIntProtB+"\t"+cellIntProtC+"\n");
+                results.flush();
+            }
         }
     }
-    
     
     
 }

@@ -1,4 +1,4 @@
-package MNP9_NeuN_PV_Cellpose;
+package NeuN_IBA1_Astro_Prots_Tools.Cellpose;
 
 
 public class CellposeTaskSettings {

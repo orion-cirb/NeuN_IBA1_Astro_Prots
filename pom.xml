@@ -7,12 +7,12 @@
 
         
 	<groupId>cirb</groupId>
-	<artifactId>MNP9_NeuN_PV</artifactId>
+	<artifactId>NeuN_IBA1_Astro_Prots</artifactId>
 	<version>1.0.0</version>
         <packaging>jar</packaging>
-	<name>MNP9_NeuN_PV</name>
+	<name>NeuN_IBA1_Astro_Prots</name>
 	<description>
-            Detection Neun/PV cells read intensty in MNP9 channel 
+            Detection Neun/IBA1/Astrocyte cells read intensty in protein channel 
         </description>
 
 	<developers>
@@ -45,7 +45,7 @@
 	<properties>
                 <imagej.app.directory>/opt/Fiji.app/</imagej.app.directory>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<main-class>MNP9_NeuN_PV.jar</main-class>
+		<main-class>NeuN_IBA1_Astro_Prots.jar</main-class>
 	</properties>
 
 	<dependencies>

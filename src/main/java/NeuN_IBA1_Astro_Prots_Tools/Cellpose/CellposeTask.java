@@ -1,6 +1,6 @@
-package MNP9_NeuN_PV_Cellpose;
+package NeuN_IBA1_Astro_Prots_Tools.Cellpose;
 
-import MNP9_NeuN_PV_Cellpose.CellposeTaskSettings;
+import NeuN_IBA1_Astro_Prots_Tools.Cellpose.CellposeTaskSettings;
 import java.util.ArrayList;
 
 public class CellposeTask {
