@@ -189,8 +189,8 @@ public class NeuN_IBA1_Astro_Prots implements PlugIn {
                 // Astrocyte
                 if (!astroHeader.equals("")) {
                     System.out.println("--- Opening Astrocyte channel  ...");
-                    ImagePlus imgAstro = BF.openImagePlus(options)[channelsIndex[1]];
-                    Objects3DIntPopulation astroPop = tools.cellPoseCellsPop(imgAstro, tools.cellPoseModel_Astro, tools.cellPoseAstroDiameter);
+                    ImagePlus imgAstro = BF.openImagePlus(options)[channelsIndex[2]];
+                    Objects3DIntPopulation astroPop = tools.stardistObjectsPop(imgAstro);
                     int astroCells = astroPop.getNbObjects();
                     System.out.println(astroCells+" Astrocyte cells found");
                     // save images objects

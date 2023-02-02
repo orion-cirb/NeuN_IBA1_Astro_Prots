@@ -4,9 +4,11 @@ package NeuN_IBA1_Astro_Prots_Tools;
 
 import NeuN_IBA1_Astro_Prots_Tools.Cellpose.CellposeSegmentImgPlusAdvanced;
 import NeuN_IBA1_Astro_Prots_Tools.Cellpose.CellposeTaskSettings;
+import NeuN_IBA1_Astro_Prots_Tools.StardistOrion.StarDist2D;
 import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
 import ij.ImagePlus;
+import ij.gui.WaitForUserDialog;
 import ij.io.FileSaver;
 import ij.measure.Calibration;
 import ij.plugin.Duplicator;
@@ -56,22 +58,31 @@ public class Tools {
     public boolean canceled = true;
     public double minCellVol= 20;
     public double maxCellVol = 8000;
+    public double minCellAstroVol= 40;
+    public double maxCellAstroVol = 100;
     public Calibration cal;
     public double pixVol = 0;
     
      // Cellpose
     public int cellPoseNeuNDiameter = 100;
     public int cellPoseIba1Diameter = 60;
-    public int cellPoseAstroDiameter = 80;
     private String cellPoseEnvDirPath = (IJ.isWindows()) ? System.getProperty("user.home")+"\\miniconda3\\envs\\cellpose\\" : 
             "/opt/miniconda3/envs/cellpose/";
     private final String cellposeModelsPath = (IJ.isWindows()) ? System.getProperty("user.home")+"\\.cellpose\\models\\" :
             System.getProperty("user.home")+"/.cellpose/models/";
     public final String cellPoseModel_NeuN = "cyto2";
     public final String cellPoseModel_Iba1 = "cyto2_Iba1_microglia";
-    public final String cellPoseModel_Astro = "cyto2";
     public final ImageIcon icon = new ImageIcon(this.getClass().getResource("/Orion_icon.png"));
-
+    
+    // Stardist
+    private Object syncObject = new Object();
+    private final File stardistModelPath = new File(IJ.getDirectory("imagej")+File.separator+"models");
+    private final String stardistModel = "StandardFluo.zip";
+    private final double stardistPercentileBottom = 0.2;
+    private final double stardistPercentileTop = 99.8;
+    private final double stardistProbThresh = 0.85;
+    private final double stardistOverlayThresh = 0.25;
+    
     public CLIJ2 clij2 = CLIJ2.getInstance();
     
    
@@ -91,7 +102,6 @@ public class Tools {
         gd.addDirectoryField("Cellpose environment path : ", cellPoseEnvDirPath);
         gd.addNumericField("NeuN Cellpose diameter: ", cellPoseNeuNDiameter);
         gd.addNumericField("Iba1 Cellpose diameter: ", cellPoseIba1Diameter);
-        gd.addNumericField("Astrocyte Cellpose diameter: ", cellPoseIba1Diameter);
         gd.addNumericField("min cell volume (µm3): ", minCellVol);
         gd.addNumericField("max cell volume (µm3): ", maxCellVol);
         gd.addMessage("Image calibration", Font.getFont("Monospace"), Color.blue);
@@ -106,7 +116,6 @@ public class Tools {
         cellPoseEnvDirPath = gd.getNextString();
         cellPoseNeuNDiameter = (int)gd.getNextNumber();
         cellPoseIba1Diameter = (int)gd.getNextNumber();
-        cellPoseAstroDiameter = (int)gd.getNextNumber();
         minCellVol = gd.getNextNumber();
         maxCellVol = gd.getNextNumber();
         cal.pixelWidth = cal.pixelHeight = gd.getNextNumber();
@@ -116,7 +125,8 @@ public class Tools {
             return(null);
         return(chChoices);
     }
-     
+    
+    
     // Flush and close images
     public void flush_close(ImagePlus img) {
         img.flush();
@@ -405,6 +415,44 @@ public class Tools {
         ImgObjectsFile.saveAsTiff(outDir+imageName);
         imgObj.closeImagePlus();
         imgObjects.close();
+    }
+    
+     /**
+     * Apply StarDist 2D slice by slice
+     * Label detections in 3D
+     * @param img
+     * @return objects population
+     * @throws java.io.IOException
+     */
+    public Objects3DIntPopulation stardistObjectsPop(ImagePlus img) throws IOException {
+        
+        String stardistOutput = "Label Image";
+        
+        // Resize image to be in a StarDist-friendly scale
+        int imgWidth = img.getWidth();
+        int imgHeight = img.getHeight();
+        ImagePlus imgIn = img.resize((int)(img.getWidth()*0.5), (int)(img.getHeight()*0.5), 1, "none");
+        // Remove outliers
+        //IJ.run(imgIn, "Remove Outliers...", "radius=4 threshold=1 which=Bright stack");
+
+        // StarDist
+        File starDistModelFile = new File(stardistModelPath+File.separator+stardistModel);
+        StarDist2D star = new StarDist2D(syncObject, starDistModelFile);
+        star.loadInput(imgIn);
+        star.setParams(stardistPercentileBottom, stardistPercentileTop, stardistProbThresh, stardistOverlayThresh, stardistOutput);
+        star.run();
+        flush_close(imgIn);
+
+        // Label detections in 3D
+        ImagePlus imgOut = star.getLabelImagePlus().resize(imgWidth, imgHeight, 1, "none");       
+        ImagePlus imgLabels = star.associateLabels(imgOut);
+        imgLabels.setCalibration(cal); 
+        flush_close(imgOut);
+        Objects3DIntPopulation pop = new Objects3DIntPopulation(ImageHandler.wrap(imgLabels));
+        popFilterOneZ(pop);
+        popFilterSize(pop, minCellAstroVol, maxCellAstroVol);
+        flush_close(imgLabels);
+       return(pop);
     }
     
      /**
