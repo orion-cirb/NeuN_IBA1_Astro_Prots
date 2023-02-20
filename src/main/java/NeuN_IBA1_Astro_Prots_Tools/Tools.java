@@ -63,12 +63,10 @@ public class Tools {
     public double pixVol = 0;
     
      // Cellpose
-    public int cellPoseNeuNDiameter = 60;
+    public int cellPoseNeuNDiameter = 80;
     public int cellPoseIba1Diameter = 60;
-    private String cellPoseEnvDirPath = (IJ.isWindows()) ? System.getProperty("user.home")+"\\miniconda3\\envs\\cellpose\\" : 
+    private String cellPoseEnvDirPath = (IJ.isWindows()) ? System.getProperty("user.home")+"\\miniconda3\\envs\\CellPose\\" : 
             "/opt/miniconda3/envs/cellpose/";
-    private final String cellposeModelsPath = (IJ.isWindows()) ? System.getProperty("user.home")+"\\.cellpose\\models\\" :
-            System.getProperty("user.home")+"/.cellpose/models/";
     public final String cellPoseModel_NeuN = "cyto2";
     public final String cellPoseModel_Iba1 = "cyto2_Iba1_microglia";
     public final ImageIcon icon = new ImageIcon(this.getClass().getResource("/Orion_icon.png"));
@@ -326,7 +324,9 @@ public class Tools {
    /**
  * Find cells with cellpose
  * return cell cytoplasm
- * @param img
+     * @param imgCell
+     * @param model
+     * @param cellPoseDiameter
  * @return 
  */
     public Objects3DIntPopulation cellPoseCellsPop(ImagePlus imgCell, String model, int cellPoseDiameter){
@@ -342,11 +342,10 @@ public class Tools {
         }
         else
             imgIn = new Duplicator().run(imgCell);
-        imgIn.setCalibration(cal);
         ImagePlus imgMed = median_filter(imgIn, 2, 2);
         flush_close(imgIn);
-        CellposeTaskSettings settings = new CellposeTaskSettings(cellposeModelsPath+model, 1, cellPoseDiameter, cellPoseEnvDirPath);
-        settings.setStitchThreshold(0.25); 
+        CellposeTaskSettings settings = new CellposeTaskSettings(model, 1, cellPoseDiameter, cellPoseEnvDirPath);
+        settings.setStitchThreshold(0.5); 
         settings.useGpu(true);
         CellposeSegmentImgPlusAdvanced cellpose = new CellposeSegmentImgPlusAdvanced(settings, imgMed);
         ImagePlus cellpose_img = cellpose.run(); 
@@ -355,6 +354,7 @@ public class Tools {
         cells_img.setCalibration(cal);
         // Find population
         Objects3DIntPopulation pop = new Objects3DIntPopulation(ImageHandler.wrap(cells_img));
+        System.out.println(pop.getNbObjects()+" cells found");
         popFilterSize(pop, minCellVol, maxCellVol);
         flush_close(cells_img);
         return(pop);
@@ -532,18 +532,20 @@ public class Tools {
                         new MeasureIntensity(obj, ImageHandler.wrap(imgProtC)).getValueMeasurement(MeasureIntensity.INTENSITY_SUM);
                 }
                 intProtA = intProtA/volProt - bgProtA;
-                String intCellsProtB = (imgProtB == null) ? "" : "\t"+(intProtB/volProt - bgProtB);
-                String intCellsProtC = (imgProtC == null) ? "" : "\t"+(intProtC/volProt - bgProtC);
-                results.write(imgName+"\t"+pop.getNbObjects()+"\t"+intProtA+intCellsProtB+intCellsProtC+"\n");
+                String protA = "\t"+intProtA+"\t"+bgProtA;
+                String protB = (imgProtB == null) ? "" : "\t"+(intProtB/volProt - bgProtB)+"\t"+bgProtB;
+                String protC = (imgProtC == null) ? "" : "\t"+(intProtC/volProt - bgProtC)+"\t"+bgProtC;
+                results.write(imgName+"\t"+pop.getNbObjects()+"\t"+protA+protB+protC+"\n");
             }
             // measure cells mask
             else {
                 intProtA = computeMaskCellsParameters(imgMask, imgProtA) - bgProtA;
                 intProtB = (imgProtB == null) ? 0 : computeMaskCellsParameters(imgMask, imgProtB) - bgProtB;
                 intProtC = (imgProtC == null) ? 0 : computeMaskCellsParameters(imgMask, imgProtC) - bgProtC;
-                String protB = (imgProtB == null) ? "" : "\t"+intProtB;
-                String protC = (imgProtC == null) ? "" : "\t"+intProtC;
-                results.write(imgName+"\t"+pop.getNbObjects()+"\t"+intProtA+protB+protC+"\n");
+                String protA = intProtA +"\t"+bgProtA;
+                String protB = (imgProtB == null) ? "" : "\t"+intProtB+"\t"+bgProtB;
+                String protC = (imgProtC == null) ? "" : "\t"+intProtC+"\t"+bgProtC;
+                results.write(imgName+"\t"+pop.getNbObjects()+"\t"+protA+protB+protC+"\n");
             }
             results.flush();
         }

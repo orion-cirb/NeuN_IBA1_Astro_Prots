@@ -93,11 +93,11 @@ public class NeuN_IBA1_Astro_Prots implements PlugIn {
             BufferedWriter neuNResults = (fwNeunCells == null) ? null : new BufferedWriter(fwNeunCells);
             String neuNHeader = (neuNResults == null) ? "" : "\tNumber of NeuN cells";
             String intProtAHeader = (chsName[channelsIndex[3]].equals("None")) ? "" : 
-                    "\tNeuN mean cells intensity in ProtA";
+                    "\tNeuN mean cells intensity in ProtA\tBg ProtA";
             String intProtBHeader = (chsName[channelsIndex[4]].equals("None")) ? "" : 
-                    "\tNeuN mean cells intensity in ProtB";
+                    "\tNeuN mean cells intensity in ProtB\tBg ProtB";
             String intProtCHeader = (chsName[channelsIndex[5]].equals("None")) ? "" : 
-                    "\tNeuN mean cells intensity in ProtC";
+                    "\tNeuN mean cells intensity in ProtC\tBg ProtC";
             // Write header
             String header= "Image Name"+neuNHeader+intProtAHeader+intProtBHeader+intProtCHeader+"\n";
             if (neuNResults != null) {
@@ -111,11 +111,11 @@ public class NeuN_IBA1_Astro_Prots implements PlugIn {
             BufferedWriter iba1Results = (fwIba1Cells == null) ? null : new BufferedWriter(fwIba1Cells);
             String iba1Header = (iba1Results == null) ? "" : "\tNumber of IBA1 soma";
             intProtAHeader = (chsName[channelsIndex[3]].equals("None")) ? "" : 
-                    "\tIBA1 mean cells intensity in ProtA";
+                    "\tIBA1 mean cells intensity in ProtA\tBg ProtA";
             intProtBHeader = (chsName[channelsIndex[4]].equals("None")) ? "" : 
-                    "\tIBA1 mean cells intensity in ProtB";
+                    "\tIBA1 mean cells intensity in ProtB\tBg ProtB";
             intProtCHeader = (chsName[channelsIndex[5]].equals("None")) ? "" : 
-                    "\tIBA1 mean cells intensity in ProtC";
+                    "\tIBA1 mean cells intensity in ProtC\tBg ProtC";
             // Write header
             header= "Image Name"+iba1Header+intProtAHeader+intProtBHeader+intProtCHeader+"\n";
             if (iba1Results != null) {
@@ -129,11 +129,11 @@ public class NeuN_IBA1_Astro_Prots implements PlugIn {
             BufferedWriter astroResults = (fwAstroCells == null) ? null : new BufferedWriter(fwAstroCells);
             String astroHeader = (fwAstroCells == null) ? "" : "\tNumber of Astro cell";
             intProtAHeader = (chsName[channelsIndex[3]].equals("None")) ? "" : 
-                    "\tAstro mean cells intensity in ProtA";
+                    "\tAstro mean cells intensity in ProtA\tBg ProtA";
             intProtBHeader = (chsName[channelsIndex[4]].equals("None")) ? "" : 
-                    "\tAstro mean cells intensity in ProtB";
+                    "\tAstro mean cells intensity in ProtB\tBg ProtB";
             intProtCHeader = (chsName[channelsIndex[5]].equals("None")) ? "" : 
-                    "\tAstro mean cells intensity in ProtC";
+                    "\tAstro mean cells intensity in ProtC\tBg ProtC";
             header= "Image Name"+astroHeader+intProtAHeader+intProtBHeader+intProtCHeader+"\n";
             if (astroResults != null) {
                 astroResults.write(header);
