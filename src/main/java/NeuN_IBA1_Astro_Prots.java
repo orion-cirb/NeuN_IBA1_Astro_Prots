@@ -1,5 +1,5 @@
 /*
- * Colocalization NeuN/ soma microgly (IB4)
+ * Colocalization NeuN/  microgly (IB4)
  * Cells volume intensity in protein channel
  */
 
@@ -91,15 +91,15 @@ public class NeuN_IBA1_Astro_Prots implements PlugIn {
             // NeuN
             FileWriter fwNeunCells = (chsName[channelsIndex[0]].equals("None")) ? null : new FileWriter(outDirResults + "NeunCells_results.xls", false);
             BufferedWriter neuNResults = (fwNeunCells == null) ? null : new BufferedWriter(fwNeunCells);
-            String neuNHeader = (neuNResults == null) ? "" : "\t#NeuN cell\tNeuN volume (µm3)";
-            String neuNIntProtAHeader = (chsName[channelsIndex[0]].equals("None")) & (chsName[channelsIndex[3]].equals("None")) ? "" : 
-                    "\tNeuN cell intensity in ProtA";
-            String neuNIntProtBHeader = (chsName[channelsIndex[0]].equals("None")) & (chsName[channelsIndex[4]].equals("None")) ? "" : 
-                    "\tNeuN cell intensity in ProtB";
-            String neuNIntProtCHeader = (chsName[channelsIndex[0]].equals("None")) & (chsName[channelsIndex[5]].equals("None")) ? "" : 
-                    "\tNeuN cell intensity in ProtC";
+            String neuNHeader = (neuNResults == null) ? "" : "\tNumber of NeuN cells";
+            String intProtAHeader = (chsName[channelsIndex[3]].equals("None")) ? "" : 
+                    "\tNeuN mean cells intensity in ProtA";
+            String intProtBHeader = (chsName[channelsIndex[4]].equals("None")) ? "" : 
+                    "\tNeuN mean cells intensity in ProtB";
+            String intProtCHeader = (chsName[channelsIndex[5]].equals("None")) ? "" : 
+                    "\tNeuN mean cells intensity in ProtC";
             // Write header
-            String header= "Image Name"+neuNHeader+neuNIntProtAHeader+neuNIntProtBHeader+neuNIntProtCHeader+"\n";
+            String header= "Image Name"+neuNHeader+intProtAHeader+intProtBHeader+intProtCHeader+"\n";
             if (neuNResults != null) {
                 neuNResults.write(header);
                 neuNResults.flush();
@@ -109,14 +109,15 @@ public class NeuN_IBA1_Astro_Prots implements PlugIn {
             // IBA1
             FileWriter fwIba1Cells = (chsName[channelsIndex[1]].equals("None")) ? null : new FileWriter(outDirResults + "Iba1Cells_results.xls", false);
             BufferedWriter iba1Results = (fwIba1Cells == null) ? null : new BufferedWriter(fwIba1Cells);
-            String iba1Header = (chsName[channelsIndex[1]].equals("None")) ? "" : "\t#IBA1 cell\tIBA1 volume (µm3)";
-            String iba1IntProtAHeader = (chsName[channelsIndex[1]].equals("None")) & (chsName[channelsIndex[3]].equals("None")) ? "" : 
-                    "\tIBA1 cell intensity in ProtA";
-            String iba1IntProtBHeader = (chsName[channelsIndex[1]].equals("None")) & (chsName[channelsIndex[4]].equals("None")) ? "" : 
-                    "\tIBA1 cell intensity in ProtB";
-            String iba1IntProtCHeader = (chsName[channelsIndex[1]].equals("None")) & (chsName[channelsIndex[5]].equals("None")) ? "" : 
-                    "\tIBA1 cell intensity in ProtC";// Write header
-            header= "Image Name"+iba1Header+iba1IntProtAHeader+iba1IntProtBHeader+iba1IntProtCHeader+"\n";
+            String iba1Header = (iba1Results == null) ? "" : "\tNumber of IBA1 soma";
+            intProtAHeader = (chsName[channelsIndex[3]].equals("None")) ? "" : 
+                    "\tIBA1 mean cells intensity in ProtA";
+            intProtBHeader = (chsName[channelsIndex[4]].equals("None")) ? "" : 
+                    "\tIBA1 mean cells intensity in ProtB";
+            intProtCHeader = (chsName[channelsIndex[5]].equals("None")) ? "" : 
+                    "\tIBA1 mean cells intensity in ProtC";
+            // Write header
+            header= "Image Name"+iba1Header+intProtAHeader+intProtBHeader+intProtCHeader+"\n";
             if (iba1Results != null) {
                 iba1Results.write(header);
                 iba1Results.flush();
@@ -126,14 +127,14 @@ public class NeuN_IBA1_Astro_Prots implements PlugIn {
             // Astro
             FileWriter fwAstroCells = (chsName[channelsIndex[2]].equals("None")) ? null : new FileWriter(outDirResults + "AstroCells_results.xls", false);
             BufferedWriter astroResults = (fwAstroCells == null) ? null : new BufferedWriter(fwAstroCells);
-            String astroHeader = (chsName[channelsIndex[2]].equals("None")) ? "" : "\t#Astro cell\tAstro volume (µm3)";
-            String astroIntProtAHeader = (chsName[channelsIndex[2]].equals("None")) & (chsName[channelsIndex[3]].equals("None")) ? "" : 
-                    "\tAstro cell intensity in ProtA";
-            String astroIntProtBHeader = (chsName[channelsIndex[2]].equals("None")) & (chsName[channelsIndex[4]].equals("None")) ? "" : 
-                    "\tAstro cell intensity in ProtB";
-            String astroIntProtCHeader = (chsName[channelsIndex[2]].equals("None")) & (chsName[channelsIndex[5]].equals("None")) ? "" : 
-                    "\tAstro cell intensity in ProtC";// Write header
-            header= "Image Name"+astroHeader+astroIntProtAHeader+astroIntProtBHeader+astroIntProtCHeader+"\n";
+            String astroHeader = (fwAstroCells == null) ? "" : "\tNumber of Astro cell";
+            intProtAHeader = (chsName[channelsIndex[3]].equals("None")) ? "" : 
+                    "\tAstro mean cells intensity in ProtA";
+            intProtBHeader = (chsName[channelsIndex[4]].equals("None")) ? "" : 
+                    "\tAstro mean cells intensity in ProtB";
+            intProtCHeader = (chsName[channelsIndex[5]].equals("None")) ? "" : 
+                    "\tAstro mean cells intensity in ProtC";
+            header= "Image Name"+astroHeader+intProtAHeader+intProtBHeader+intProtCHeader+"\n";
             if (astroResults != null) {
                 astroResults.write(header);
                 astroResults.flush();
@@ -159,44 +160,48 @@ public class NeuN_IBA1_Astro_Prots implements PlugIn {
                 ImagePlus imgProtC = (chsName[channelsIndex[5]].equals("None")) ? null : BF.openImagePlus(options)[channelsIndex[5]];
                 
                 // NeuN
-                if (!neuNHeader.equals("")) {
+                if (neuNResults != null) {
                     System.out.println("--- Opening NeuN channel  ...");
                     ImagePlus imgNeuN = BF.openImagePlus(options)[channelsIndex[0]];
                     Objects3DIntPopulation neunPop = tools.cellPoseCellsPop(imgNeuN, tools.cellPoseModel_NeuN, tools.cellPoseNeuNDiameter);
                     int neunCells = neunPop.getNbObjects();
                     System.out.println(neunCells+" NeuN cells found");
                     // save images objects
-                    tools.saveImgObjects(neunPop, rootName+"_NeuN_Objects.tif", imgNeuN, outDirResults);
+                    tools.saveImgObjects(neunPop, null, rootName+"_NeuN_Objects.tif", imgNeuN, outDirResults);
                     // write cells volume and intensity in prot channel
-                    tools.writeCellsParameters(neunPop, imgProtA, imgProtB, imgProtC, rootName, neuNResults);
+                    tools.writeCellsParameters(neunPop, null, imgProtA, imgProtB, imgProtC, rootName, neuNResults);
                     tools.flush_close(imgNeuN);
                 }
                 
                 // Iba1
-                if (!iba1Header.equals("")) {
+                if (iba1Results != null) {
                     System.out.println("--- Opening Iba1 channel  ...");
                     ImagePlus imgIba1 = BF.openImagePlus(options)[channelsIndex[1]];
+                    // Find IBA1 soma cells
                     Objects3DIntPopulation iba1Pop = tools.cellPoseCellsPop(imgIba1, tools.cellPoseModel_Iba1, tools.cellPoseIba1Diameter);
                     int iba1Cells = iba1Pop.getNbObjects();
                     System.out.println(iba1Cells+" Iba1 cells found");
-                    // save images objects
-                    tools.saveImgObjects(iba1Pop, rootName+"_Iba1_Objects.tif", imgIba1, outDirResults);
+                    // find IBA1 mask of soma and process
+                    ImagePlus iba1Cellsmask = tools.findIba1Cells(imgIba1); 
+                    
                     // write cells volume and intensity in prot channel
-                    tools.writeCellsParameters(iba1Pop, imgProtA, imgProtB, imgProtC, rootName, iba1Results);
+                    tools.writeCellsParameters(iba1Pop, iba1Cellsmask, imgProtA, imgProtB, imgProtC, rootName, iba1Results);
+                    // save images objects
+                    tools.saveImgObjects(iba1Pop, iba1Cellsmask, rootName+"_Iba1_Objects.tif", imgIba1, outDirResults);
                     tools.flush_close(imgIba1);
                 }
                 
                 // Astrocyte
-                if (!astroHeader.equals("")) {
+                if (astroResults != null) {
                     System.out.println("--- Opening Astrocyte channel  ...");
                     ImagePlus imgAstro = BF.openImagePlus(options)[channelsIndex[2]];
-                    Objects3DIntPopulation astroPop = tools.stardistObjectsPop(imgAstro);
+                    Objects3DIntPopulation astroPop = tools.cellPoseCellsPop(imgAstro, tools.cellPoseModel_NeuN, tools.cellPoseNeuNDiameter);
                     int astroCells = astroPop.getNbObjects();
                     System.out.println(astroCells+" Astrocyte cells found");
                     // save images objects
-                    tools.saveImgObjects(astroPop, rootName+"_Astro_Objects.tif", imgAstro, outDirResults);
+                    tools.saveImgObjects(astroPop, null, rootName+"_Astro_Objects.tif", imgAstro, outDirResults);
                     // write cells volume and intensity in prot channel
-                    tools.writeCellsParameters(astroPop, imgProtA, imgProtB, imgProtC, rootName, astroResults);
+                    tools.writeCellsParameters(astroPop, null, imgProtA, imgProtB, imgProtC, rootName, astroResults);
                     tools.flush_close(imgAstro);
                 }
                 tools.flush_close(imgProtA);

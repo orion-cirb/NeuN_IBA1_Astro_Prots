@@ -4,16 +4,18 @@ package NeuN_IBA1_Astro_Prots_Tools;
 
 import NeuN_IBA1_Astro_Prots_Tools.Cellpose.CellposeSegmentImgPlusAdvanced;
 import NeuN_IBA1_Astro_Prots_Tools.Cellpose.CellposeTaskSettings;
-import NeuN_IBA1_Astro_Prots_Tools.StardistOrion.StarDist2D;
 import fiji.util.gui.GenericDialogPlus;
 import ij.IJ;
 import ij.ImagePlus;
+import ij.gui.Roi;
 import ij.gui.WaitForUserDialog;
 import ij.io.FileSaver;
 import ij.measure.Calibration;
+import ij.measure.ResultsTable;
 import ij.plugin.Duplicator;
 import ij.plugin.RGBStackMerge;
 import ij.plugin.ZProjector;
+import ij.plugin.filter.Analyzer;
 import ij.process.ImageProcessor;
 import java.awt.Color;
 import java.awt.Font;
@@ -21,7 +23,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.ImageIcon;
@@ -57,14 +58,12 @@ public class Tools {
 
     public boolean canceled = true;
     public double minCellVol= 20;
-    public double maxCellVol = 8000;
-    public double minCellAstroVol= 40;
-    public double maxCellAstroVol = 100;
+    public double maxCellVol = 1000;
     public Calibration cal;
     public double pixVol = 0;
     
      // Cellpose
-    public int cellPoseNeuNDiameter = 100;
+    public int cellPoseNeuNDiameter = 60;
     public int cellPoseIba1Diameter = 60;
     private String cellPoseEnvDirPath = (IJ.isWindows()) ? System.getProperty("user.home")+"\\miniconda3\\envs\\cellpose\\" : 
             "/opt/miniconda3/envs/cellpose/";
@@ -73,15 +72,6 @@ public class Tools {
     public final String cellPoseModel_NeuN = "cyto2";
     public final String cellPoseModel_Iba1 = "cyto2_Iba1_microglia";
     public final ImageIcon icon = new ImageIcon(this.getClass().getResource("/Orion_icon.png"));
-    
-    // Stardist
-    private Object syncObject = new Object();
-    private final File stardistModelPath = new File(IJ.getDirectory("imagej")+File.separator+"models");
-    private final String stardistModel = "StandardFluo.zip";
-    private final double stardistPercentileBottom = 0.2;
-    private final double stardistPercentileTop = 99.8;
-    private final double stardistProbThresh = 0.85;
-    private final double stardistOverlayThresh = 0.25;
     
     public CLIJ2 clij2 = CLIJ2.getInstance();
     
@@ -99,9 +89,9 @@ public class Tools {
             index++;
         }
         gd.addMessage("Cells detection", Font.getFont("Monospace"), Color.blue);
-        gd.addDirectoryField("Cellpose environment path : ", cellPoseEnvDirPath);
-        gd.addNumericField("NeuN Cellpose diameter: ", cellPoseNeuNDiameter);
-        gd.addNumericField("Iba1 Cellpose diameter: ", cellPoseIba1Diameter);
+        gd.addDirectoryField("Cellpose environment path  : ", cellPoseEnvDirPath);
+        gd.addNumericField("NeuN/astro Cellpose diameter : ", cellPoseNeuNDiameter);
+        gd.addNumericField("Iba1 Cellpose diameter       : ", cellPoseIba1Diameter);
         gd.addNumericField("min cell volume (µm3): ", minCellVol);
         gd.addNumericField("max cell volume (µm3): ", maxCellVol);
         gd.addMessage("Image calibration", Font.getFont("Monospace"), Color.blue);
@@ -136,15 +126,18 @@ public class Tools {
     
     /* Median filter 
      * Using CLIJ2
-     * @param ClearCLBuffer
+     * @param ImagePlus
      * @param sizeXY
      * @param sizeZ
      */ 
-    public ClearCLBuffer median_filter(ClearCLBuffer  imgCL, double sizeXY, double sizeZ) {
+    public ImagePlus median_filter(ImagePlus  img, double sizeXY, double sizeZ) {
+        ClearCLBuffer imgCL = clij2.push(img);
         ClearCLBuffer imgCLMed = clij2.create(imgCL);
         clij2.mean3DBox(imgCL, imgCLMed, sizeXY, sizeXY, sizeZ);
         clij2.release(imgCL);
-        return(imgCLMed);
+        ImagePlus imgMed = clij2.pull(imgCLMed);
+        clij2.release(imgCLMed);
+        return(imgMed);
     }
     
     /**
@@ -350,18 +343,18 @@ public class Tools {
         else
             imgIn = new Duplicator().run(imgCell);
         imgIn.setCalibration(cal);
-        median_filter(clij2.push(imgIn), 2, 2);
+        ImagePlus imgMed = median_filter(imgIn, 2, 2);
+        flush_close(imgIn);
         CellposeTaskSettings settings = new CellposeTaskSettings(cellposeModelsPath+model, 1, cellPoseDiameter, cellPoseEnvDirPath);
         settings.setStitchThreshold(0.25); 
         settings.useGpu(true);
-        CellposeSegmentImgPlusAdvanced cellpose = new CellposeSegmentImgPlusAdvanced(settings, imgIn);
+        CellposeSegmentImgPlusAdvanced cellpose = new CellposeSegmentImgPlusAdvanced(settings, imgMed);
         ImagePlus cellpose_img = cellpose.run(); 
-        flush_close(imgIn);
+        flush_close(imgMed);
         ImagePlus cells_img = (resized) ? cellpose_img.resize(width, height, 1, "none") : cellpose_img;
         cells_img.setCalibration(cal);
         // Find population
         Objects3DIntPopulation pop = new Objects3DIntPopulation(ImageHandler.wrap(cells_img));
-        popFilterOneZ(pop);
         popFilterSize(pop, minCellVol, maxCellVol);
         flush_close(cells_img);
         return(pop);
@@ -397,6 +390,50 @@ public class Tools {
         return(ai.get());
     } 
     
+      /**
+     * Threshold 
+     * USING CLIJ2
+     * @param imgCL
+     * @param thMed
+     */
+    private ImagePlus threshold(ImagePlus img, String thMed) {
+        ClearCLBuffer imgCL = clij2.push(img);
+        ClearCLBuffer imgCLBin = clij2.create(imgCL);
+        clij2.automaticThreshold(imgCL, imgCLBin, thMed);
+        clij2.release(imgCL);
+        ImagePlus imgBin = clij2.pull(imgCLBin);
+        clij2.release(imgCLBin);
+        return(imgBin);
+    }
+    
+      /**
+     * Opening 
+     * USING CLIJ2
+     * @param imgCL
+     * @param iter
+     */
+    private ImagePlus open(ImagePlus img, int iter) {
+        ClearCLBuffer imgCL = clij2.push(img);
+        ClearCLBuffer imgCLOpen = clij2.create(imgCL);
+        clij2.openingBox(imgCL, imgCLOpen, iter);
+        clij2.release(imgCL);
+        ImagePlus imgOpen = clij2.pull(imgCLOpen);
+        clij2.release(imgCLOpen);
+        return(imgOpen);
+    }
+    
+    /**
+     * Find iba1 cells and processes
+     */
+    public ImagePlus findIba1Cells(ImagePlus imgIba1) {
+        ImagePlus imgMed = median_filter(imgIba1, 2, 2);
+        ImagePlus imgBin = threshold(imgMed, "Li");
+        flush_close(imgMed);
+        ImagePlus imgOpen = open(imgBin, 1);
+        flush_close(imgBin);
+        return(imgOpen);
+    }
+    
     /**
      * Save cells Population in image
      * @param pop cells
@@ -404,11 +441,13 @@ public class Tools {
      * @param img 
      * @param outDir 
      */
-    public void saveImgObjects(Objects3DIntPopulation pop, String imageName, ImagePlus img, String outDir) {
+    public void saveImgObjects(Objects3DIntPopulation pop, ImagePlus imgMask, String imageName, ImagePlus img, String outDir) {
         //create image objects population
         ImageHandler imgObj = ImageHandler.wrap(img).createSameDimensions();
         pop.drawInImage(imgObj);
-        ImagePlus[] imgColors = {imgObj.getImagePlus(), null,null,img};
+        if (imgMask != null)
+            IJ.run(imgMask, "16-bit", "");
+        ImagePlus[] imgColors = {imgObj.getImagePlus(), imgMask, null, img};
         ImagePlus imgObjects = new RGBStackMerge().mergeHyperstacks(imgColors, false);
         imgObjects.setCalibration(cal);
         FileSaver ImgObjectsFile = new FileSaver(imgObjects);
@@ -417,43 +456,6 @@ public class Tools {
         imgObjects.close();
     }
     
-     /**
-     * Apply StarDist 2D slice by slice
-     * Label detections in 3D
-     * @param img
-     * @return objects population
-     * @throws java.io.IOException
-     */
-    public Objects3DIntPopulation stardistObjectsPop(ImagePlus img) throws IOException {
-        
-        String stardistOutput = "Label Image";
-        
-        // Resize image to be in a StarDist-friendly scale
-        int imgWidth = img.getWidth();
-        int imgHeight = img.getHeight();
-        ImagePlus imgIn = img.resize((int)(img.getWidth()*0.5), (int)(img.getHeight()*0.5), 1, "none");
-        // Remove outliers
-        //IJ.run(imgIn, "Remove Outliers...", "radius=4 threshold=1 which=Bright stack");
-
-        // StarDist
-        File starDistModelFile = new File(stardistModelPath+File.separator+stardistModel);
-        StarDist2D star = new StarDist2D(syncObject, starDistModelFile);
-        star.loadInput(imgIn);
-        star.setParams(stardistPercentileBottom, stardistPercentileTop, stardistProbThresh, stardistOverlayThresh, stardistOutput);
-        star.run();
-        flush_close(imgIn);
-
-        // Label detections in 3D
-        ImagePlus imgOut = star.getLabelImagePlus().resize(imgWidth, imgHeight, 1, "none");       
-        ImagePlus imgLabels = star.associateLabels(imgOut);
-        imgLabels.setCalibration(cal); 
-        flush_close(imgOut);
-        Objects3DIntPopulation pop = new Objects3DIntPopulation(ImageHandler.wrap(imgLabels));
-        popFilterOneZ(pop);
-        popFilterSize(pop, minCellAstroVol, maxCellAstroVol);
-        flush_close(imgLabels);
-       return(pop);
-    }
     
      /**
      * Do Z projection
@@ -485,28 +487,66 @@ public class Tools {
       return(bg);
     }
     
+    public double computeMaskCellsParameters(ImagePlus mask, ImagePlus img) {
+        ResultsTable rt = new ResultsTable();
+        Analyzer analyzer = new Analyzer(img, Analyzer.AREA+Analyzer.INTEGRATED_DENSITY, rt);
+        double area = 0;
+        double intSum = 0;
+        for (int n = 1; n <= mask.getNSlices(); n++) {
+            mask.setSlice(n);
+            IJ.setAutoThreshold(mask, "Default");
+            IJ.run(mask, "Create Selection", "");
+            Roi roi = mask.getRoi();
+            img.setSlice(n);
+            img.setRoi(roi);
+            rt.reset();
+            analyzer.measure();
+            area += rt.getValue("Area", 0); 
+            intSum += rt.getValue("IntDen",0);
+        }
+        double meanInt = intSum/area*cal.pixelDepth;
+        return(meanInt);
+    }
+    
      /**
      * Compute and save cells parameters
      */
-    public void writeCellsParameters(Objects3DIntPopulation pop, ImagePlus imgProtA, ImagePlus imgProtB, ImagePlus imgProtC, 
+    public void writeCellsParameters(Objects3DIntPopulation pop, ImagePlus imgMask, ImagePlus imgProtA, ImagePlus imgProtB, ImagePlus imgProtC, 
             String imgName, BufferedWriter results) throws IOException {
         if (pop.getNbObjects() != 0) {
             double bgProtA = findBackground(imgProtA);
             double bgProtB = (imgProtB == null) ? 0 : findBackground(imgProtB);
             double bgProtC = (imgProtC == null) ? 0 : findBackground(imgProtC);
-            for (Object3DInt obj : pop.getObjects3DInt()) {
-                int objLabel = (int)obj.getLabel();
-                double objVol = new MeasureVolume(obj).getVolumeUnit();
-                double cellIntProtA = new MeasureIntensity(obj, ImageHandler.wrap(imgProtA)).getValueMeasurement(MeasureIntensity.INTENSITY_AVG) - bgProtA;
-                double cellIntProtB = (imgProtB == null) ? 0 : 
-                        new MeasureIntensity(obj, ImageHandler.wrap(imgProtB)).getValueMeasurement(MeasureIntensity.INTENSITY_AVG) - bgProtB;
-                double cellIntProtC = (imgProtC == null) ? 0 : 
-                        new MeasureIntensity(obj, ImageHandler.wrap(imgProtC)).getValueMeasurement(MeasureIntensity.INTENSITY_AVG) - bgProtC;
-                results.write(imgName+"\t"+objLabel+"\t"+objVol+"\t"+cellIntProtA+"\t"+cellIntProtB+"\t"+cellIntProtC+"\n");
-                results.flush();
+            // Measure cells intensities
+            double intProtA = 0;
+            double intProtB = 0;
+            double intProtC = 0;
+            double volProt = 0;
+            if (imgMask == null) {
+                for (Object3DInt obj : pop.getObjects3DInt()) {
+                    volProt += new MeasureVolume(obj).getVolumePix();
+                    intProtA += new MeasureIntensity(obj, ImageHandler.wrap(imgProtA)).getValueMeasurement(MeasureIntensity.INTENSITY_SUM);
+                    intProtB += (imgProtB == null) ? 0 : 
+                        new MeasureIntensity(obj, ImageHandler.wrap(imgProtB)).getValueMeasurement(MeasureIntensity.INTENSITY_SUM);
+                    intProtC += (imgProtC == null) ? 0 : 
+                        new MeasureIntensity(obj, ImageHandler.wrap(imgProtC)).getValueMeasurement(MeasureIntensity.INTENSITY_SUM);
+                }
+                intProtA = intProtA/volProt - bgProtA;
+                String intCellsProtB = (imgProtB == null) ? "" : "\t"+(intProtB/volProt - bgProtB);
+                String intCellsProtC = (imgProtC == null) ? "" : "\t"+(intProtC/volProt - bgProtC);
+                results.write(imgName+"\t"+pop.getNbObjects()+"\t"+intProtA+intCellsProtB+intCellsProtC+"\n");
             }
+            // measure cells mask
+            else {
+                intProtA = computeMaskCellsParameters(imgMask, imgProtA) - bgProtA;
+                intProtB = (imgProtB == null) ? 0 : computeMaskCellsParameters(imgMask, imgProtB) - bgProtB;
+                intProtC = (imgProtC == null) ? 0 : computeMaskCellsParameters(imgMask, imgProtC) - bgProtC;
+                String protB = (imgProtB == null) ? "" : "\t"+intProtB;
+                String protC = (imgProtC == null) ? "" : "\t"+intProtC;
+                results.write(imgName+"\t"+pop.getNbObjects()+"\t"+intProtA+protB+protC+"\n");
+            }
+            results.flush();
         }
     }
-    
     
 }
