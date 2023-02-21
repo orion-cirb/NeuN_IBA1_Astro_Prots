@@ -532,7 +532,7 @@ public class Tools {
                         new MeasureIntensity(obj, ImageHandler.wrap(imgProtC)).getValueMeasurement(MeasureIntensity.INTENSITY_SUM);
                 }
                 intProtA = intProtA/volProt - bgProtA;
-                String protA = "\t"+intProtA+"\t"+bgProtA;
+                String protA = intProtA+"\t"+bgProtA;
                 String protB = (imgProtB == null) ? "" : "\t"+(intProtB/volProt - bgProtB)+"\t"+bgProtB;
                 String protC = (imgProtC == null) ? "" : "\t"+(intProtC/volProt - bgProtC)+"\t"+bgProtC;
                 results.write(imgName+"\t"+pop.getNbObjects()+"\t"+protA+protB+protC+"\n");
