@@ -1,36 +1,36 @@
-# MNP9_NeuN_PV
+# NeuN_IBA1_Astro_Prots 
 
 * **Developed for:** Arthur
 * **Team:** Rouach
-* **Date:** January 2023
+* **Date:** February 2023
 * **Software:** Fiji
-
 
 
 ### Images description
 
-3D images taken with a x60 objective
+3D images taken with a 40x or x60 objective
 
 2 to 6 channels:
-  1. NeuN cells (optionnal)
-  2. Iba1 cells (optionnal)
-  3. Astrocyte (optionnal)
-  4. ProtA (mandatory)
-  5. ProtB (optionnal)
-  6. ProtC (optionnal)
+  1. NeuN cells (optional)
+  2. IBA1 microglia (optional)
+  3. Astrocytes (optional)
+  4. Protein A (mandatory)
+  5. Protein B (optional)
+  6. Protein C (optional)
 
 ### Plugin description
 
-* Detect NeuN or Iba1 or Astrocyte cells (if corresponding channel provided) cells with Cellpose
-* Measure cell volume and intensity in Proteins channels
+* Detect NeuN cells/Iba1 microglia/Astrocytes with Cellpose
+* Detect IBA1 microglia processes using Median filtering + Li thresholding + opening
+* Measure cells and microglia processes volume and intensity in proteins channels
 
 ### Dependencies
 
 * **3DImageSuite** Fiji plugin
 * **CLIJ** Fiji plugin
-* **Cellpose** conda environment + *cyto2* *cyto2_Iba1_microglia* model
+* **Cellpose** conda environment + *cyto2* and *cyto2_Iba1_microglia* (homemade) models
 
 ### Version history
 
-Version 1 released on January 5, 2023.
+Version 1 released on February 24, 2023.
 
