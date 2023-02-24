@@ -5,14 +5,13 @@
 	http://maven.apache.org/xsd/maven-4.0.0.xsd">
         <modelVersion>4.0.0</modelVersion>
 
-        
 	<groupId>cirb</groupId>
 	<artifactId>NeuN_IBA1_Astro_Prots</artifactId>
 	<version>1.0.0</version>
         <packaging>jar</packaging>
 	<name>NeuN_IBA1_Astro_Prots</name>
 	<description>
-            Detection Neun/IBA1/Astrocyte cells read intensty in protein channel 
+            Detect NeuN cells/IBA1 microglia/Astrocytes and read their intensity in various protein channels 
         </description>
 
 	<developers>
